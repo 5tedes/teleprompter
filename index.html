@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Teleprompter — Emergencies in Primary Care</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: #0d0d0d;
+    color: #efefef;
+    font-family: 'Georgia', serif;
+    overflow: hidden;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  #scroll-container {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    position: relative;
+  }
+
+  #content {
+    padding: 50vh 7vw 72vh;
+    max-width: 900px;
+    margin: 0 auto;
+    line-height: 1.85;
+  }
+
+  .script {
+    font-size: 26px;
+    color: #f0f0f0;
+    margin-bottom: 16px;
+  }
+
+  .slide-header {
+    font-size: 12px;
+    font-family: 'Arial', sans-serif;
+    color: #5599ff;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 52px;
+    margin-bottom: 2px;
+  }
+
+  .timing {
+    font-size: 11px;
+    font-family: 'Arial', sans-serif;
+    color: #555;
+    font-style: italic;
+    margin-bottom: 18px;
+    letter-spacing: 0.04em;
+  }
+
+  .note {
+    font-size: 15px;
+    font-family: 'Arial', sans-serif;
+    color: #cc8833;
+    font-style: italic;
+    margin-bottom: 12px;
+    padding-left: 14px;
+    border-left: 3px solid #cc8833;
+  }
+
+  .transition {
+    font-size: 12px;
+    font-family: 'Arial', sans-serif;
+    color: #44bb66;
+    font-weight: bold;
+    margin-top: 18px;
+    margin-bottom: 6px;
+    letter-spacing: 0.04em;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid #2a2a2a;
+    margin: 26px 0 10px;
+  }
+
+  .poll-header { color: #aa77ff; }
+  .questions-header { color: #44bb66; }
+
+  /* Focus line */
+  #focus-line {
+    position: fixed;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(85, 153, 255, 0.18);
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* Fade overlays */
+  #fade-top {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 130px;
+    background: linear-gradient(to bottom, #0d0d0d 40%, transparent);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  #fade-bottom {
+    position: fixed;
+    bottom: 58px; left: 0; right: 0;
+    height: 90px;
+    background: linear-gradient(to top, #0d0d0d 30%, transparent);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  /* Controls bar */
+  #controls {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(5,5,5,0.96);
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-top: 1px solid #1e1e1e;
+    z-index: 20;
+    padding: 0 12px;
+  }
+
+  .ctrl-btn {
+    background: #161616;
+    border: 1px solid #2c2c2c;
+    color: #bbb;
+    border-radius: 8px;
+    font-family: 'Arial', sans-serif;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0 12px;
+    min-width: 52px;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
+  }
+
+  .ctrl-btn:active { background: #242424; }
+
+  #btn-play {
+    background: #0f1f0f;
+    border-color: #285528;
+    color: #55ff88;
+    min-width: 86px;
+    font-size: 14px;
+  }
+
+  #btn-play:active { background: #1a2f1a; }
+
+  #speed-display {
+    color: #555;
+    font-family: 'Arial', sans-serif;
+    font-size: 11px;
+    min-width: 36px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  /* Portrait warning */
+  #portrait-warning {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: #0d0d0d;
+    z-index: 200;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    color: #777;
+    font-family: 'Arial', sans-serif;
+    font-size: 17px;
+    text-align: center;
+    padding: 40px;
+    line-height: 1.5;
+  }
+
+  #portrait-warning .icon {
+    font-size: 52px;
+    opacity: 0.5;
+  }
+
+  @media (orientation: portrait) {
+    #portrait-warning { display: flex; }
+  }
+</style>
+</head>
+<body>
+
+<div id="portrait-warning">
+  <div class="icon">⟳</div>
+  <div>Rotate to landscape<br>for the best experience</div>
+</div>
+
+<div id="focus-line"></div>
+<div id="fade-top"></div>
+<div id="fade-bottom"></div>
+
+<div id="scroll-container">
+  <div id="content">
+
+    <!-- TITLE -->
+    <div class="slide-header">Slide 1 — Title Slide</div>
+    <div class="timing">~ 30 seconds &nbsp;|&nbsp; Target: 0:00</div>
+
+    <p class="script">Good morning, everyone. Thank you for having me — genuinely.</p>
+    <p class="script">My name is Stephanos Eliades. I'm a GP and an emergency physician, and today I want to talk about emergencies in primary care. Not the ones that announce themselves. The ones that don't.</p>
+    <p class="transition">→ NEXT: About Me</p>
+    <hr class="divider">
+
+    <!-- SLIDE 2 -->
+    <div class="slide-header">Slide 2 — About Me</div>
+    <div class="timing">~ 75 seconds &nbsp;|&nbsp; Target: 0:30</div>
+
+    <p class="script">A little about me — I'll keep this short. Although I should say — when the people who organised this conference also sign your teaching contract, there is a certain pressure to get things right.</p>
+    <p class="script">I'm Cypriot. In 1995, Cyprus had no medical school so I left to train abroad. I came back in 2001, then left again in 2003 for specialty training in the UK — with a firm plan to return after finishing, but no idea of what direction that training was going to take. In 2008, a bunch of British doctor friends convinced me to go to Sydney for a year — and I went along. I should perhaps have been more suspicious of the word "year."</p>
+    <p class="script">Emergency medicine training, then twelve years as a senior emergency physician across multiple hospitals in Sydney. By 2019, after eleven years of standing up and running around, I was old enough to admit that sitting down occasionally was a reasonable career choice.</p>
+    <p class="script">The reason I mention all of this isn't the credentials. It's the vantage point. I've been the GP deciding whether to send someone to A&amp;E. And I've been the emergency physician on the receiving end of that call. Both sides. Same patients. What changes is the lens.</p>
+    <p class="script">Today I want to show you what that other lens looks like.</p>
+    <p class="transition">→ NEXT: Why This Matters</p>
+    <hr class="divider">
+
+    <!-- SLIDE 3 -->
+    <div class="slide-header">Slide 3 — Why This Matters</div>
+    <div class="timing">~ 90 seconds &nbsp;|&nbsp; Target: 1:45</div>
+
+    <p class="script">So — why does this matter?</p>
+    <p class="script">Diagnostic error in primary care is a WHO patient safety priority. Not a niche academic concern. Not something that happens just in other countries. It happens everywhere and…it happens here.</p>
+    <p class="script">The data is blunt: roughly five percent of outpatient consultations involve a missed or delayed diagnosis. That sounds small. But over half of those result in patient harm.</p>
+    <p class="script">And when you drill into where the errors come from, it's the same three things every time. Inadequate history — we didn't ask the right questions. Inadequate examination — we didn't look where the symptom was pointing. And the wrong test, or the right test at the wrong time.</p>
+    <p class="note">[ Pause briefly here — let this land before the turn ]</p>
+    <p class="script">And in nearly half of all cases — 43.7% — it wasn't just one of those three. Multiple failures stacked on each other in the same encounter.</p>
+    <p class="script">These are not knowledge gaps. Every doctor in this room knows how to take a history. These are process gaps. And process gaps are fixable. That is what my talk is about.</p>
+    <p class="transition">→ NEXT: The Problem</p>
+    <hr class="divider">
+
+    <!-- SLIDE 4 -->
+    <div class="slide-header">Slide 4 — The Problem</div>
+    <div class="timing">~ 90 seconds &nbsp;|&nbsp; Target: 3:15</div>
+
+    <p class="script">Let me frame the problem.</p>
+    <p class="script">In any given GP practice, you'll see three types of patient.</p>
+    <p class="script">The first is the obviously unwell. Pale, sweaty, clutching their chest. The whole waiting room already knows something is wrong. That patient goes to A&amp;E. Easy.</p>
+    <p class="script">The second is the clearly well. Sore throat, repeat prescription, routine review. No drama. Done. Easy.</p>
+    <p class="script">And then there's the one in the middle. This patient doesn't look particularly unwell. They have a common complaint — a headache, some back pain, a bit of breathlessness. They've probably been in before. And they leave looking fine.</p>
+    <p class="note">[ Slight pause — this is the hook ]</p>
+    <p class="script">This whole talk is about that patient. The one who walks in looking fine, and walks out with a ticking time bomb.</p>
+    <p class="transition">→ NEXT: Framework Overview</p>
+    <hr class="divider">
+
+    <!-- SLIDE 5 -->
+    <div class="slide-header">Slide 5 — Framework Overview</div>
+    <div class="timing">~ 60 seconds &nbsp;|&nbsp; Target: 4:45</div>
+
+    <p class="script">So — how do we catch that patient?</p>
+    <p class="script">The framework I use has three steps. Assessment — a proper one. Investigations — the right test, at the right time. And disposition — what actually happens next.</p>
+    <p class="script">Every patient should leave your office through one of three doors, and you should be able to say exactly which one and why.</p>
+    <p class="script">Let's go through each step.</p>
+    <p class="transition">→ NEXT: Assessment — History</p>
+    <hr class="divider">
+
+    <!-- SLIDE 6 -->
+    <div class="slide-header">Slide 6 — Assessment · History</div>
+    <div class="timing">~ 2 minutes &nbsp;|&nbsp; Target: 5:45</div>
+
+    <p class="script">Step one is assessment. And we start with the history — your most powerful tool.</p>
+    <p class="script">What you're listening for are the warning signs – the red flags. The features in the story that should put the worst-case scenario on the table.</p>
+    <p class="script">For headache — sudden onset, thunderclap, worst-ever, fever, or any neurological change. That's not a migraine until you've ruled out a subarachnoid.</p>
+    <p class="script">For chest pain — tearing quality, exertional, radiation to the back or jaw, syncope, or dyspnoea. You're thinking ACS, PE, and Aortic Dissection.</p>
+    <p class="script">For abdominal pain — sudden, severe, any syncope, age over sixty, or a vascular history. That's an AAA or a mesenteric event until proven otherwise.</p>
+    <p class="script">For back pain — night pain, fever, unexplained weight loss, age over fifty, new onset. This isn't always mechanical. Think cauda equina, malignancy, aortic aneurysm.</p>
+    <p class="script">For breathlessness — sudden onset, associated with pleuritic pain, leg swelling, immobility, recent surgery. Exclude a PE.</p>
+    <p class="script">For limb pain or swelling — sudden, asymmetric, immobility, cancer, recent travel. Think DVT.</p>
+    <p class="note">[ Deliver this next line clearly and slowly ]</p>
+    <p class="script">The rule: one warning sign is enough. Do not wait for two. If the story has any of those features, the worst-case is on the table and you need to work it up.</p>
+    <p class="transition">→ NEXT: Assessment — Vitals</p>
+    <hr class="divider">
+
+    <!-- SLIDE 7 -->
+    <div class="slide-header">Slide 7 — Assessment · Vitals</div>
+    <div class="timing">~ 90 seconds &nbsp;|&nbsp; Target: 7:45</div>
+
+    <p class="script">Now — vitals.</p>
+    <p class="script">In the emergency department, every single patient has a full set of vitals before I see them. Heart rate, blood pressure, respiratory rate, oxygen saturations, temperature, conscious state. Every patient. Before I see them.</p>
+    <p class="script">In primary care, we often take a blood pressure. That's it. And that's not enough.</p>
+    <p class="script">The numbers that should stop you: heart rate over 110 or under 50. Systolic under 110, or a drop of more than 30 from baseline. Respiratory rate over 22 or under 10 — this is the vital sign that changes first, and the one we measure least. Count it. Every time. Oxygen saturations below 94 on room air. Temperature above 38 – and below 36 – hypothermic sepsis is very common especially in the elderly. Finally any drop from the patient's usual GCS.</p>
+    <p class="script">Caveat: beta blockers blunt the tachycardia — and hypertensive patients are often on them. These patients won't go tachy when sick, and their BP won't drop below 100 until they're in serious trouble. For them, 100 might represent a 60-point fall from baseline. Know the baseline.</p>
+    <p class="note">[ Land this firmly — it's the slide's closer ]</p>
+    <p class="script">Two abnormal vitals — sick until proven otherwise. Regardless of how they look.</p>
+    <p class="transition">→ NEXT: Assessment — Examination</p>
+    <hr class="divider">
+
+    <!-- SLIDE 8 -->
+    <div class="slide-header">Slide 8 — Assessment · Examination</div>
+    <div class="timing">~ 90 seconds &nbsp;|&nbsp; Target: 9:15</div>
+
+    <p class="script">The third pillar: examination. And the rule here is simple.</p>
+    <p class="script">If the symptom points to a system — examine not only that system but also the systems around it. Every time.</p>
+    <p class="script">Headache: neck stiffness, fundi, focal neurology.</p>
+    <p class="script">Chest pain: auscultate, palpate, check the calves.</p>
+    <p class="script">Abdominal pain: feel every quadrant — and specifically, feel the aorta. A pulsatile abdominal mass in an older patient changes everything.</p>
+    <p class="script">Back pain: examine the spine, check neurology in the legs, examine the abdomen, check the pulses. Sacral anaesthesia and bilateral leg weakness are not mechanical back pain.</p>
+    <p class="script">Breathlessness: listen to the chest, check the legs, check the JVP. Limb symptoms: compare both sides, measure the calves, look at the colour and the pulses.</p>
+    <p class="note">[ Pause before the closer ]</p>
+    <p class="script">You cannot find what you don't look for. If you didn't examine — you didn't assess.</p>
+    <p class="transition">→ NEXT: Slido Poll #1</p>
+    <hr class="divider">
+
+    <!-- SLIDE 9 — SLIDO -->
+    <div class="slide-header poll-header">Slide 9 — Slido Poll #1</div>
+    <div class="timing">~ 1 minute &nbsp;|&nbsp; Target: 10:45</div>
+
+    <p class="note">[ Open Slido — read question aloud, give ~45 sec, brief comment on results ]</p>
+    <p class="script">"Have you ever had a patient turn out to be sicker than you thought — after a phone consult?"</p>
+    <p class="transition">→ NEXT: Telephone Consults</p>
+    <hr class="divider">
+
+    <!-- SLIDE 10 -->
+    <div class="slide-header">Slide 10 — Telephone Consults</div>
+    <div class="timing">~ 90 seconds &nbsp;|&nbsp; Target: 11:45</div>
+
+    <p class="note">[ If results showed most said yes — acknowledge it: "Right — so we've all been there." ]</p>
+    <p class="script">The phone has a role. But it also has a ceiling.</p>
+    <p class="script">Here's the ceiling: you can't see the patient's face. You can't see how they're moving. You can't hear the pauses and the wincing. A huge amount of the clinical picture is non-verbal, and the phone strips all of that away.</p>
+    <p class="script">What the phone hides: how they look, how they move, every vital sign, the abdomen, the chest, the calf.</p>
+    <p class="script">Bring them in when you're not sure. If there's any warning feature in the story — sudden onset, severe, syncope, neurological change, or the patient just doesn't sound right — bring them in. The threshold for a face-to-face should be low.</p>
+    <p class="transition">→ NEXT: Assessment on the Phone</p>
+    <hr class="divider">
+
+    <!-- SLIDE 11 -->
+    <div class="slide-header">Slide 11 — Assessment on the Phone</div>
+    <div class="timing">~ 60 seconds &nbsp;|&nbsp; Target: 13:15</div>
+
+    <p class="script">Let me make this concrete. We said assessment has three pillars — history, vitals, examination.</p>
+    <p class="script">On the phone, you have a partial history. The patient tells you what they think matters. You can't see the expressions, the pallor, the breathing pattern.</p>
+    <p class="script">Vitals? Impossible. Examination? Impossible.</p>
+    <p class="note">[ Let "impossible" land twice — brief beat between them ]</p>
+    <p class="script">You're working with one out of three tools, and even that one is compromised.</p>
+    <p class="script">The phone is a triage tool. Use it to decide whether the patient comes in — not to decide what's wrong with them.</p>
+    <p class="transition">→ NEXT: Investigations</p>
+    <hr class="divider">
+
+    <!-- SLIDE 12 -->
+    <div class="slide-header">Slide 12 — Framework · Investigations</div>
+    <div class="timing">~ 90 seconds &nbsp;|&nbsp; Target: 14:15</div>
+
+    <p class="script">Now — investigations. The question isn't just what to order. It's how quickly can you get the result and whether the patient can safely wait that long.</p>
+    <p class="script">Blood tests: an FBC and CRP might take hours. A D-dimer may be back the next day. Troponin is not an outpatient test — if you're thinking of ordering a troponin, the patient should already be in A&amp;E.</p>
+    <p class="script">Radiology: a plain X-ray might be available within the hour. That's great if you're confident in reading it and acting on the findings. You may be able to arrange a CT on the same day but the report? Days. An MRI? Given everyone is having one, most likely a couple of weeks.</p>
+    <p class="script">The critical question for every investigation: can the worst-case safely wait for this result? If you're worried about a PE and the CT-PA is three days away — that patient goes to A&amp;E today, not next week.</p>
+    <p class="note">[ Deliver this last line slowly and clearly ]</p>
+    <p class="script">If the worst-case can't wait — neither can the patient.</p>
+    <p class="transition">→ NEXT: Disposition</p>
+    <hr class="divider">
+
+    <!-- SLIDE 13 -->
+    <div class="slide-header">Slide 13 — Framework · Disposition</div>
+    <div class="timing">~ 90 seconds &nbsp;|&nbsp; Target: 15:45</div>
+
+    <p class="script">The last step in the framework: disposition. Every patient leaves through one of three doors.</p>
+    <p class="script">Door one — A&amp;E now. Red flags, abnormal vitals, or a picture that could be time-critical. Off they go – either in an ambulance or if stable, someone takes them now.</p>
+    <p class="script">Door two — You're not immediately worried, but you're not fully reassured. You give a specific timeframe with or without investigations — 24 hours, 48 hours, a week — and you safety-net: if X, Y happens, go straight to A&amp;E. They leave with a booked appointment. Not "come back if you're not okay."</p>
+    <p class="script">Door three — home with a plan. You've assessed, you've examined, you're confident. Clear management plan, written safety-netting, they know when to seek help.</p>
+    <p class="note">[ Emphasise "deliberately" — it's the point ]</p>
+    <p class="script">Every patient. One of three doors. Deliberately. And documented.</p>
+    <p class="transition">→ NEXT: Slido Poll #2</p>
+    <hr class="divider">
+
+    <!-- SLIDE 14 — SLIDO -->
+    <div class="slide-header poll-header">Slide 14 — Slido Poll #2</div>
+    <div class="timing">~ 1 minute &nbsp;|&nbsp; Target: 17:15</div>
+
+    <p class="note">[ Open Slido — use results as the bridge into the case ]</p>
+    <p class="script">"How many patients with back pain have you seen in the last two weeks?"</p>
+    <p class="script">After results: "Right — so back pain is everywhere. Which makes it the perfect setup for what comes next."</p>
+    <p class="transition">→ NEXT: Case — Back Pain Timeline</p>
+    <hr class="divider">
+
+    <!-- SLIDE 15 -->
+    <div class="slide-header">Slide 15 — Case · Back Pain Timeline</div>
+    <div class="timing">~ 90 seconds &nbsp;|&nbsp; Target: 18:15</div>
+
+    <p class="script">This is a real case. Details anonymised, timeline accurate.</p>
+    <p class="script">A 70yo man presents with lower back pain. Retired-ish car mechanic. Has back pain often. Hardly ever goes to the GP.</p>
+    <p class="script">Sees GP on the 5th of August. The note reads: lower back pain, no radiculopathy, straight leg-raise negative. Analgesia prescribed.</p>
+    <p class="script">8th of August. Same note. Same plan.</p>
+    <p class="script">26th of September. Same note. Same plan.</p>
+    <p class="script">16th of October. Same. Exact. Note.</p>
+    <p class="note">[ Let the repetition land — pause between each one, slow it down ]</p>
+    <p class="script">At this point: seven weeks, four consultations, and the clinical note has been reproduced each time. No escalation. No new history. No examination beyond the straight leg-raise. No investigation ordered.</p>
+    <p class="script">20th of October — Goes back to the GP with ongoing symptoms. Expresses his disappointment. Referred to Orthopaedics who sees him the same day, notes bilateral straight leg raise is positive. MRI Whole Spine ordered. The patient books this and goes home.</p>
+    <p class="script">23rd October — Patient wakes up with testicular pain and rushes to the GP very concerned. Urology referral for new testicular pain. No examination done.</p>
+    <p class="script">Seven encounters over eleven weeks. Two different doctors. Same complaint. Same note. Same treatment. And the diagnosis was missed every time.</p>
+    <p class="transition">→ NEXT: Case — MRI Result</p>
+    <hr class="divider">
+
+    <!-- SLIDE 16 -->
+    <div class="slide-header">Slide 16 — Case · MRI — Leaking AAA</div>
+    <div class="timing">~ 90 seconds &nbsp;|&nbsp; Target: 19:45</div>
+
+    <p class="note">[ Slow right down. Let the image do the work. Pause after the diagnosis. ]</p>
+    <p class="script">This is the MRI.</p>
+    <p class="script">What you're looking at is a leaking abdominal aortic aneurysm.</p>
+    <p class="note">[ Pause. ]</p>
+    <p class="script">Three months of "mechanical back pain." The diagnosis was there, hiding in plain sight.</p>
+    <p class="script">An AAA doesn't always announce itself with the classic triad — pain, hypotension, a pulsatile mass. It can grumble. For weeks. As back pain. As flank pain. Until it doesn't.</p>
+    <p class="script">This aneurysm was leaking, not ruptured. The patient's daughter obtained the key images from radiology and asked a friend who is a doctor to have a look on a Friday afternoon. Resulting in one of those "where is your dad right now exactly?" phone calls. He was redirected to a hospital instead of the small village he lives which is 25 minutes outside Nicosia and had an endovascular repair three hours later.</p>
+    <p class="script">The MRI report was released ten calendar days later.</p>
+    <p class="transition">→ NEXT: The Lesson</p>
+    <hr class="divider">
+
+    <!-- SLIDE 17 -->
+    <div class="slide-header">Slide 17 — Case · The Lesson</div>
+    <div class="timing">~ 90 seconds &nbsp;|&nbsp; Target: 21:15</div>
+
+    <p class="script">So what went wrong?</p>
+    <p class="script">What was done: the patient was seen. A history was taken — the same one, four times. Analgesia was prescribed. Eventually referrals were made. An MRI was requested.</p>
+    <p class="script">What was not done: nobody asked the red-flag questions. Nobody documented an abdominal examination. Nobody checked vitals beyond blood pressure. Nobody asked why the pain wasn't improving. Nobody considered a vascular differential. And nobody stopped to say: why is this patient still here?</p>
+    <p class="note">[ This is the emotional core — deliver it clearly and without rushing ]</p>
+    <p class="script">This is not a case of incompetence. This is a process failure.</p>
+    <p class="script">The lesson is not about AAAs. We all know what an AAA is. The lesson is about the process. Ask the right questions. Examine the patient. And when something isn't getting better — to stop anchoring to the initial diagnosis.</p>
+    <p class="script">And the testicular pain — referred pain, from the aneurysm extending inferiorly. Urology was the wrong call. Because the abdomen was never examined.</p>
+    <p class="note">[ Note: mechanism is genitofemoral nerve (L1/L2) irritated by retroperitoneal hematoma along psoas — not direct vascular extension. Correct this if asked. ]</p>
+    <p class="transition">→ NEXT: Take Home</p>
+    <hr class="divider">
+
+    <!-- SLIDE 18 -->
+    <div class="slide-header">Slide 18 — Take Home</div>
+    <div class="timing">~ 2 minutes &nbsp;|&nbsp; Target: 22:45</div>
+
+    <p class="script">So — six things for Monday morning.</p>
+    <p class="script">One: the dangerous patient. The one who looks well enough to dismiss. That's who this whole talk has been about. When the story has a warning sign — don't dismiss. Work it up.</p>
+    <p class="script">Two: the phone is not an assessment. Anything that worries you — bring them in. Low threshold.</p>
+    <p class="script">Three: two abnormal vitals — sick until proven otherwise. Regardless of how they look.</p>
+    <p class="script">Four: examine the patient. If the symptom points to a system — look there and beyond. Every time.</p>
+    <p class="script">Five: worst-case first. Before you land on a diagnosis, ask yourself: what can't I afford to miss today? Start there.</p>
+    <p class="note">[ Brief pause before six ]</p>
+    <p class="script">And six: safety-net in writing. Specific. Time-bound. A booked review — not "come back if you're not okay."</p>
+    <p class="script">Thank you very much.</p>
+    <p class="transition">→ NEXT: Questions</p>
+    <hr class="divider">
+
+    <!-- SLIDE 19 -->
+    <div class="slide-header questions-header">Slide 19 — Thank You / Questions</div>
+    <div class="timing">~ 20 seconds &nbsp;|&nbsp; Target: 24:45</div>
+
+    <p class="script">I'm happy to take questions.</p>
+    <p class="note">[ Smile. You're done. Let them come to you. ]</p>
+
+  </div>
+</div>
+
+<!-- Controls -->
+<div id="controls">
+  <button class="ctrl-btn" id="btn-prev">◀ PREV</button>
+  <button class="ctrl-btn" id="btn-slower">− SLOW</button>
+  <button class="ctrl-btn" id="btn-play">▶ PLAY</button>
+  <button class="ctrl-btn" id="btn-faster">+ FAST</button>
+  <button class="ctrl-btn" id="btn-next">NEXT ▶</button>
+  <div id="speed-display">0.70×</div>
+</div>
+
+<script>
+  const container = document.getElementById('scroll-container');
+  const btnPlay = document.getElementById('btn-play');
+  const speedDisplay = document.getElementById('speed-display');
+  const slideHeaders = Array.from(document.querySelectorAll('.slide-header'));
+
+  let scrolling = false;
+  let speed = 0.7;
+  let animFrame = null;
+  let lastTime = null;
+  let scrollAccum = 0;
+
+  function getCurrentSlideIndex() {
+    const focusY = container.scrollTop + window.innerHeight * 0.5;
+    let idx = 0;
+    for (let i = 0; i < slideHeaders.length; i++) {
+      if (slideHeaders[i].offsetTop <= focusY) idx = i;
+      else break;
+    }
+    return idx;
+  }
+
+  function goToSlide(idx) {
+    idx = Math.max(0, Math.min(idx, slideHeaders.length - 1));
+    container.scrollTop = Math.max(0, slideHeaders[idx].offsetTop - window.innerHeight * 0.45);
+    scrollAccum = 0;
+  }
+
+  function step(timestamp) {
+    if (!scrolling) return;
+    if (lastTime === null) lastTime = timestamp;
+    const delta = timestamp - lastTime;
+    lastTime = timestamp;
+    scrollAccum += speed * (delta / 16.67);
+    const pixels = Math.floor(scrollAccum);
+    if (pixels >= 1) {
+      container.scrollTop += pixels;
+      scrollAccum -= pixels;
+    }
+    animFrame = requestAnimationFrame(step);
+  }
+
+  function play() {
+    scrolling = true;
+    lastTime = null;
+    btnPlay.textContent = '⏸ PAUSE';
+    btnPlay.style.color = '#ffaa44';
+    btnPlay.style.borderColor = '#664422';
+    animFrame = requestAnimationFrame(step);
+  }
+
+  function pause() {
+    scrolling = false;
+    btnPlay.textContent = '▶ PLAY';
+    btnPlay.style.color = '#55ff88';
+    btnPlay.style.borderColor = '#285528';
+    if (animFrame) cancelAnimationFrame(animFrame);
+  }
+
+  function togglePlay() {
+    scrolling ? pause() : play();
+  }
+
+  function changeSpeed(delta) {
+    speed = Math.min(Math.max(speed + delta, 0.1), 4.0);
+    speedDisplay.textContent = speed.toFixed(2) + '×';
+  }
+
+  // Button wiring
+  document.getElementById('btn-play').addEventListener('click', togglePlay);
+  document.getElementById('btn-prev').addEventListener('click', () => goToSlide(getCurrentSlideIndex() - 1));
+  document.getElementById('btn-next').addEventListener('click', () => goToSlide(getCurrentSlideIndex() + 1));
+  document.getElementById('btn-slower').addEventListener('click', () => changeSpeed(-0.1));
+  document.getElementById('btn-faster').addEventListener('click', () => changeSpeed(0.1));
+
+  // Tap on content to play/pause (but not on controls)
+  container.addEventListener('click', togglePlay);
+
+  // Keyboard support
+  document.addEventListener('keydown', (e) => {
+    switch (e.code) {
+      case 'Space':
+        e.preventDefault();
+        togglePlay();
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        changeSpeed(0.05);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        changeSpeed(-0.05);
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        goToSlide(getCurrentSlideIndex() - 1);
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        goToSlide(getCurrentSlideIndex() + 1);
+        break;
+      case 'KeyR':
+        pause();
+        container.scrollTop = 0;
+        scrollAccum = 0;
+        break;
+      case 'KeyF':
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else document.exitFullscreen();
+        break;
+    }
+  });
+</script>
+</body>
+</html>

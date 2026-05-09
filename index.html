@@ -552,8 +552,8 @@
   document.getElementById('btn-play').addEventListener('click', togglePlay);
   document.getElementById('btn-prev').addEventListener('click', () => goToSlide(getCurrentSlideIndex() - 1));
   document.getElementById('btn-next').addEventListener('click', () => goToSlide(getCurrentSlideIndex() + 1));
-  document.getElementById('btn-slower').addEventListener('click', () => changeSpeed(-0.1));
-  document.getElementById('btn-faster').addEventListener('click', () => changeSpeed(0.1));
+  document.getElementById('btn-slower').addEventListener('click', () => changeSpeed(-0.05));
+  document.getElementById('btn-faster').addEventListener('click', () => changeSpeed(0.05));
 
   // Tap on content to play/pause (but not on controls)
   container.addEventListener('click', togglePlay);

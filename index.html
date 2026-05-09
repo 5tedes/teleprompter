@@ -116,6 +116,11 @@
     background: linear-gradient(to top, #0d0d0d 30%, transparent);
     pointer-events: none;
     z-index: 5;
+    transition: bottom 0.3s ease;
+  }
+
+  #fade-bottom.controls-hidden {
+    bottom: 0;
   }
 
   /* Controls bar */
@@ -131,6 +136,11 @@
     border-top: 1px solid #1e1e1e;
     z-index: 20;
     padding: 0 12px;
+    transition: transform 0.3s ease;
+  }
+
+  #controls.hidden {
+    transform: translateY(100%);
   }
 
   .ctrl-btn {
@@ -482,6 +492,8 @@
 
 <script>
   const container = document.getElementById('scroll-container');
+  const controls = document.getElementById('controls');
+  const fadeBottom = document.getElementById('fade-bottom');
   const btnPlay = document.getElementById('btn-play');
   const speedDisplay = document.getElementById('speed-display');
   const slideHeaders = Array.from(document.querySelectorAll('.slide-header'));
@@ -491,6 +503,24 @@
   let animFrame = null;
   let lastTime = null;
   let scrollAccum = 0;
+  let hideTimer = null;
+  let controlsVisible = true;
+
+  function showControls() {
+    controls.classList.remove('hidden');
+    fadeBottom.classList.remove('controls-hidden');
+    controlsVisible = true;
+    clearTimeout(hideTimer);
+    if (scrolling) {
+      hideTimer = setTimeout(hideControls, 2500);
+    }
+  }
+
+  function hideControls() {
+    controls.classList.add('hidden');
+    fadeBottom.classList.add('controls-hidden');
+    controlsVisible = false;
+  }
 
   function getCurrentSlideIndex() {
     const focusY = container.scrollTop + window.innerHeight * 0.5;
@@ -529,6 +559,7 @@
     btnPlay.style.color = '#ffaa44';
     btnPlay.style.borderColor = '#664422';
     animFrame = requestAnimationFrame(step);
+    hideTimer = setTimeout(hideControls, 2500);
   }
 
   function pause() {
@@ -537,6 +568,7 @@
     btnPlay.style.color = '#55ff88';
     btnPlay.style.borderColor = '#285528';
     if (animFrame) cancelAnimationFrame(animFrame);
+    showControls();
   }
 
   function togglePlay() {
@@ -555,8 +587,14 @@
   document.getElementById('btn-slower').addEventListener('click', () => changeSpeed(-0.05));
   document.getElementById('btn-faster').addEventListener('click', () => changeSpeed(0.05));
 
-  // Tap on content to play/pause (but not on controls)
-  container.addEventListener('click', togglePlay);
+  // Tap on content: show controls if hidden, otherwise toggle play/pause
+  container.addEventListener('click', () => {
+    if (!controlsVisible) {
+      showControls();
+    } else {
+      togglePlay();
+    }
+  });
 
   // Keyboard support
   document.addEventListener('keydown', (e) => {
